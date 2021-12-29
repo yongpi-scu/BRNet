@@ -1,0 +1,77 @@
+dataset: BIRADS
+task: classification
+
+data:
+  root_dir: data/
+  pkl_file: datasets/USG_BIRDAS_Dataset.pkl
+  color_channels: 3
+  num_classes: 7
+  normalize:
+    mean: None
+    std: None
+
+train:
+  batch_size: 16
+  num_workers: 8
+  pin_memory: true
+  mixup:
+    version: v2
+    alpha: 1.0
+  aug_trans:
+    trans_seq: [random_horizontal_flip, multi_input, to_tensor]
+    multi_input:
+      size: 299
+    flip_prob: 0.5
+    fixed_resize:
+      size: [299, 299]
+
+
+eval:
+  batch_size: 16
+  num_workers: 8
+  pin_memory: true
+  ckpt_path: None
+  aug_trans:
+    trans_seq: [multi_input, to_tensor]
+    multi_input:
+      size: 299
+    flip_prob: 0.5
+    fixed_resize:
+      size: [299, 299]
+
+logging:
+  use_logging: true
+  use_tensorboard: true
+
+optim:
+  num_epochs: 200
+  optim_method: adam
+  sgd:
+    base_lr: 1e-2
+    momentum: 0.9
+    weight_decay: 5e-4
+    nesterov: false
+  adam:
+    base_lr: 1e-3
+    betas: [0.9, 0.999]
+    weight_decay: 1e-4
+    momentum: 0.9
+    amsgrad: false
+  use_lr_decay: false
+  lr_decay_method: lambda
+  cosine: None
+  warmup_cosine: None
+
+criterion:
+  criterion_method: ordered_loss
+  ordered_loss:
+    alpha: 1
+    beta: 0.01 # 0.001 to 0.1
+
+network:
+  model_name: inception_v3
+  model_suffix: BRNet
+  drop_prob: 0.7 # 0.5
+  use_parallel: false
+  seed: 22
+  num_gpus: 0
