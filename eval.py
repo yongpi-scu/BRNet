@@ -61,9 +61,10 @@ if __name__ == '__main__':
     network_params['device'] = "cuda" if str2bool(args.use_cuda) else "cpu"
     network_params['use_parallel'] = str2bool(args.use_parallel)
     network_params['num_gpus'] = num_gpus
-    network_params['model_name'] = args.net
-    if args.model == "mixup_model":
-        from models.mixup_model import Model
+    network_params['net'] = args.net
+    network_params['model_name'] = args.model
+    if args.model == "mi_model":
+        from models.mi_model import Model
     else:
         raise NotImplementedError(args.model+" not implemented")
     config['eval']['ckpt_path'] = args.ckpt_path

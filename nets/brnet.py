@@ -2,12 +2,34 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ['Inception_V3_BRNet']
+model_urls = {
+    'BRNet': '/root/.cache/torch/checkpoints/inception_v3_google-1a9a5a14.pth',
+}
 
+def load_pretrain(net, model_name, exclusions):
+    """Restore model from checkpoint file."""
+    pretrained_dict = torch.load(model_urls[model_name])
+    for key in list(pretrained_dict.keys()):
+        for exclusion in exclusions:
+            if exclusion in key:
+                pretrained_dict.pop(key)
+                break
+    model_dict = net.state_dict()
+    model_dict.update(pretrained_dict)
+    print("%s model restored"%model_name)
+    net.load_state_dict(model_dict)
+    return net
 
-class Inception_V3_BRNet(nn.Module):
-    def __init__(self, num_classes=1000, drop_rate=0.5, color_channels=3, aux_logits=False, transform_input=False):
-        super(Inception_V3_BRNet, self).__init__()
+def brnet(pretrained=True, num_classes=7, drop_rate=0.5, color_channels=3):
+    net = BRNet(num_classes=num_classes, drop_rate=drop_rate, color_channels=color_channels)
+    if pretrained:
+        exclusions = ['fc.weight', 'fc.bias', 'AuxLogits', 'Conv2d_1a_3x3']
+        net = load_pretrain(net, 'BRNet', exclusions)
+    return net
+
+class BRNet(nn.Module):
+    def __init__(self, num_classes=1000, drop_rate=0.5, color_channels=3, aux_logits=False, transform_input=False, channel_order_classes=24):
+        super(BRNet, self).__init__()
         self.drop_prob = drop_rate
         self.aux_logits = aux_logits
         self.transform_input = transform_input
@@ -30,6 +52,7 @@ class Inception_V3_BRNet(nn.Module):
         self.Mixed_7b = InceptionE(1280)
         self.Mixed_7c = InceptionE(2048)
         self.fc = nn.Linear(2048, num_classes)
+        self.channel_order_classifier = nn.Linear(2048, channel_order_classes)
 
         # init weights
         for m in self.modules():
@@ -57,6 +80,7 @@ class Inception_V3_BRNet(nn.Module):
         # 147 x 147 x 32
         x = self.Conv2d_2b_3x3(x)
         # 147 x 147 x 64
+
         x = F.max_pool2d(x, kernel_size=3, stride=2)
         # 73 x 73 x 64
         x = self.Conv2d_3b_1x1(x)
@@ -97,11 +121,9 @@ class Inception_V3_BRNet(nn.Module):
         # 1 x 1 x 2048
         x = x.view(x.size(0), -1)
         # 2048
-        x = self.fc(x)
-        # 1000 (num_classes)
-        if self.training and self.aux_logits:
-            return x, aux
-        return x
+        y = self.fc(x)
+        channel_order = self.channel_order_classifier(x)
+        return y, channel_order
 
 
 class InceptionA(nn.Module):
